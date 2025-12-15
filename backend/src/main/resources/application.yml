@@ -1,0 +1,51 @@
+##  配置文件
+#
+#
+#spring:
+#
+#  # 数据库配置
+#  datasource:
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    url: jdbc:mysql://localhost:3306/task_management_system?useSSL=false&serverTimezone=UTC
+#    username: root
+#    password: 301477
+#
+#
+## MyBatis-Plus 配置
+#mybatis-plus:
+#  mapper-locations: classpath:mapper/**/*.xml
+#  type-aliases-package: com.task.backend.entity
+#
+## 服务器配置
+#server:
+#  port: 8080
+
+
+spring:
+  # 数据库配置（适配 MySQL 9.2）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.x+ 及 9.x 必须使用此驱动
+    url: jdbc:mysql://localhost:3306/task_management_system?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 301477  # 确保密码正确（若包含特殊字符，需用单引号包裹，比如 '301@477'）
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# 文件存储路径配置
+file:
+  upload:
+#    path: /uploads/avatars/  # Linux/Mac
+     path: D:\mqy\java\task-management\ploads\avatars\  # Windows
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml  # 正确，匹配 mapper 目录下所有 XML 文件
+  type-aliases-package: com.task.backend.entity  # 正确，实体类包路径
+
+# 服务器配置（默认8080，可省略）
+server:
+  port: 8080

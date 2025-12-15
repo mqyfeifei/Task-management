@@ -1,0 +1,59 @@
+# Node.js and frontend-related files
+node_modules/
+dist/
+*.log
+*.env
+yarn.lock
+package-lock.json
+.vscode/
+.idea/
+*.tsbuildinfo
+
+# Frontend build output
+build/
+
+# JetBrains IDEs (e.g., IntelliJ IDEA, PhpStorm, WebStorm)
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Backend related files
+target/
+*.iml
+*.jar
+*.war
+*.ear
+*.class
+
+# Maven
+mvnw
+mvnw.cmd
+
+# IntelliJ IDEA
+*.iws
+*.iml
+*.ipr
+
+# Java specific
+*.class
+*.log
+
+# Exclude other common files
+*.bak
+*.swp
+*.swo
+*.tmp
+
+# Eclipse IDE
+.project
+.classpath
+.settings/
+
+# Other IDEs or text editors
+.vscode/
+new_backend/
+test_backend/
+user_management/
+ploads

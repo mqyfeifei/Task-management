@@ -1,0 +1,38 @@
+/* 导入 Element Plus 基础样式（若未通过 index.html 引入） */
+/* @import "element-plus/dist/index.css"; */
+
+/* 通用动画效果 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* 页面容器样式 */
+.page-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 按钮通用样式 */
+.btn-primary {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background-color: #096dd9;
+}
+
+/* 卡片阴影效果 */
+.card-shadow {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  background-color: white;
+  padding: 20px;
+}
