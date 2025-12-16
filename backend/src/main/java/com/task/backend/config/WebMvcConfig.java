@@ -14,7 +14,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 配置头像访问路径
-        registry.addResourceHandler("/uploads/avatars/**")
+        registry.addResourceHandler("/public/files/**")
                 .addResourceLocations("file:" + uploadPath);
     }
 }

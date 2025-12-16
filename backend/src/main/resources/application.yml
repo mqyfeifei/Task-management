@@ -38,7 +38,7 @@ spring:
 
 file:
   upload:
-    path: D:/mqy/java/task-management/uploads/files/
+    path: D:\mqy\java\task-management\frontend\public\files\
 
 
 # MyBatis-Plus 配置

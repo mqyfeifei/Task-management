@@ -117,7 +117,7 @@ public class SysUserController {
                 return Result.fail("图片大小不能超过2MB");
             }
 
-            // 创建上传目录
+            // 确保上传目录存在
             File uploadDir = new File(uploadPath);
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
@@ -129,12 +129,12 @@ public class SysUserController {
                     originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
             String filename = UUID.randomUUID().toString() + extension;
 
-            // 保存文件
+            // 保存文件到指定目录
             Path filePath = Paths.get(uploadPath, filename);
             Files.write(filePath, file.getBytes());
 
-            // 生成访问URL
-            String avatarUrl = "/uploads/avatars/" + filename;
+            // 生成访问URL（只保存相对路径）
+            String avatarUrl = "/public/files/" + filename;
 
             // 更新用户头像URL
             SysUser user = userService.getById(userId);
@@ -160,44 +160,50 @@ public class SysUserController {
             return Result.fail("上传失败: " + e.getMessage());
         }
     }
+
+    // 修改密码
+    @PutMapping("/change-password")
+    public Result<Void> changePassword(@RequestBody Map<String, String> params) {
+        try {
+            Long userId = Long.parseLong(params.get("userId"));
+            String oldPassword = params.get("oldPassword");
+            String newPassword = params.get("newPassword");
+
+            // 验证参数
+            if (oldPassword == null || oldPassword.isEmpty() ||
+                    newPassword == null || newPassword.isEmpty()) {
+                return Result.fail("密码不能为空");
+            }
+
+            if (newPassword.length() < 6) {
+                return Result.fail("新密码长度不能少于6位");
+            }
+
+            // 获取用户
+            SysUser user = userService.getById(userId);
+            if (user == null) {
+                return Result.fail("用户不存在");
+            }
+
+            // 验证旧密码
+            if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+                return Result.fail("原密码错误");
+            }
+
+            // 更新密码
+            user.setPassword(passwordEncoder.encode(newPassword));
+            boolean success = userService.updateById(user);
+
+            if (success) {
+                return Result.success(null, "密码修改成功");
+            } else {
+                return Result.fail("密码修改失败");
+            }
+        } catch (NumberFormatException e) {
+            return Result.fail("用户ID格式错误");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.fail("修改密码失败: " + e.getMessage());
+        }
+    }
 }
-
-
-
-//import com.task.backend.entity.SysUser;
-//import com.task.backend.service.ISysUserService;
-//import org.springframework.web.bind.annotation.*;
-//
-//import jakarta.annotation.Resource;
-//import com.task.backend.common.Result;
-//
-//@RestController
-//@RequestMapping("/api/user")
-//public class SysUserController {
-//
-//    @Resource
-//    private ISysUserService userService;
-//
-//    // 用户注册
-//    @PostMapping("/register")
-//    public String register(@RequestBody SysUser user) {
-//        if (userService.getByUsername(user.getUsername()) != null) {
-//            return "用户名已存在";
-//        }
-//        boolean success = userService.register(user);
-//
-//        return success ? "注册成功" : "注册失败";
-//    }
-//
-//    // 用户登录（简化版，实际需集成Spring Security）
-//    @PostMapping("/login")
-//    public String login(@RequestParam String username, @RequestParam String password) {
-//        SysUser user = userService.getByUsername(username);
-//        if (user == null) return "用户不存在";
-//        // 密码校验（实际需用BCryptPasswordEncoder.matches()）
-//        if (password.equals(user.getPassword())) { // 简化逻辑，实际需加密校验
-//            return "登录成功，用户ID：" + user.getUserId();
-//        }
-//        return "密码错误";
-//    }
-

@@ -35,7 +35,14 @@ export const userAPI = {
         'Content-Type': 'multipart/form-data'
       }
     });
-  }
+  },
+    // 修改密码
+  changePassword: (data: {
+    userId: string;
+    oldPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse> =>
+    service.put('/api/user/change-password', data),
 };
 
 

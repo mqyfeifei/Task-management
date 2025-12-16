@@ -72,7 +72,8 @@ export const getCurrentUser = (): UserInfo | null => {
     return {
       userId: decoded.userId || decoded.sub,
       username: decoded.username,
-      email: decoded.email
+      email: decoded.email,
+      avatar: decoded.avatar
     };
   } catch (error) {
     console.error('解析用户信息失败:', error);

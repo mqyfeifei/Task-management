@@ -25,9 +25,10 @@
       <div class="navbar-user">
         <el-dropdown @command="handleCommand" trigger="click">
           <div class="user-trigger">
-            <el-avatar :size="32" class="user-avatar">
+            <el-avatar :size="32" :src="avatarUrl" class="user-avatar">
               {{ username.charAt(0).toUpperCase() }}
             </el-avatar>
+
             <span class="username">{{ username }}</span>
             <el-icon><ArrowDown /></el-icon>
           </div>
@@ -75,7 +76,7 @@ const route = useRoute();
 
 const username = ref('用户');
 const activeMenu = ref('/tasks');
-
+const avatarUrl = ref('');
 const initUserInfo = async () => {
   const user = getCurrentUser();
   if (user?.username) {
@@ -94,6 +95,7 @@ const initUserInfo = async () => {
     const res = await userAPI.getUserInfo(userId);
     if (res.success && res.data) {
       username.value = res.data.username || '用户';
+      avatarUrl.value = res.data.avatarUrl || '';
     } else {
       ElMessage.warning(res.message || '获取用户信息失败');
     }

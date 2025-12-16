@@ -24,13 +24,22 @@
             </p>
           </div>
           
-          <el-button 
-            type="primary" 
-            @click="showEditDialog = true"
-            :icon="Edit"
-          >
-            编辑资料
-          </el-button>
+          <div class="action-buttons">
+            <el-button 
+              type="primary" 
+              @click="showEditDialog = true"
+              :icon="Edit"
+            >
+              编辑资料
+            </el-button>
+            <el-button 
+              type="warning" 
+              @click="showPasswordDialog = true"
+              :icon="Lock"
+            >
+              修改密码
+            </el-button>
+          </div>
         </div>
 
         <el-divider />
@@ -138,13 +147,66 @@
           </el-button>
         </template>
       </el-dialog>
+
+      <!-- 修改密码对话框 -->
+      <el-dialog 
+        v-model="showPasswordDialog" 
+        title="修改密码"
+        width="450px"
+        :close-on-click-modal="false"
+      >
+        <el-form 
+          :model="passwordForm" 
+          :rules="passwordRules"
+          ref="passwordFormRef"
+          label-width="90px"
+        >
+          <el-form-item label="原密码" prop="oldPassword">
+            <el-input 
+              v-model="passwordForm.oldPassword" 
+              type="password"
+              placeholder="请输入原密码"
+              show-password
+            />
+          </el-form-item>
+          
+          <el-form-item label="新密码" prop="newPassword">
+            <el-input 
+              v-model="passwordForm.newPassword" 
+              type="password"
+              placeholder="请输入新密码(至少6位)"
+              show-password
+            />
+          </el-form-item>
+          
+          <el-form-item label="确认密码" prop="confirmPassword">
+            <el-input 
+              v-model="passwordForm.confirmPassword" 
+              type="password"
+              placeholder="请再次输入新密码"
+              show-password
+            />
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <el-button @click="cancelPasswordChange">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="changePassword" 
+            :loading="passwordLoading"
+          >
+            确认修改
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import type { UploadRequestOptions } from 'element-plus';
 import { 
   Edit, 
@@ -152,7 +214,8 @@ import {
   Picture,
   Calendar, 
   Document,
-  Plus
+  Plus,
+  Lock
 } from '@element-plus/icons-vue';
 import { getCurrentUserId } from '@/utils/auth';
 import { userAPI } from '@/api';
@@ -169,22 +232,56 @@ interface UserInfo {
 const userId = getCurrentUserId();
 const userInfo = ref<UserInfo>({});
 const showEditDialog = ref(false);
+const showPasswordDialog = ref(false);
 const loading = ref(false);
 const saveLoading = ref(false);
+const passwordLoading = ref(false);
 const avatarPreview = ref('');
+const passwordFormRef = ref<FormInstance>();
 
 const editForm = reactive({
   username: '',
   signature: ''
 });
 
-// 头像 URL（优先显示预览，否则显示原头像）
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+});
+
+// 密码验证规则
+const passwordRules: FormRules = {
+  oldPassword: [
+    { required: true, message: '请输入原密码', trigger: 'blur' }
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.newPassword) {
+          callback(new Error('两次输入的密码不一致'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'blur'
+    }
+  ]
+};
+
+// 头像 URL（修复路径拼接）
 const avatarUrl = computed(() => {
   if (avatarPreview.value) {
     return avatarPreview.value;
   }
   if (userInfo.value.avatarUrl) {
-    return `http://localhost:8080${userInfo.value.avatarUrl}`; 
+    // 直接使用完整的本地路径
+    return `${userInfo.value.avatarUrl}`;
   }
   return '';
 });
@@ -331,6 +428,63 @@ const cancelEdit = () => {
   editForm.signature = userInfo.value.signature || '';
 };
 
+// 修改密码
+const changePassword = async () => {
+  if (!passwordFormRef.value) return;
+  
+  // 验证表单
+  const valid = await passwordFormRef.value.validate().catch(() => false);
+  if (!valid) return;
+  
+  if (!userId) {
+    ElMessage.warning('用户ID不存在');
+    return;
+  }
+  
+  passwordLoading.value = true;
+  
+  try {
+    const res = await userAPI.changePassword({
+      userId: userId,
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword
+    });
+    
+    if (res.success) {
+      ElMessage.success('密码修改成功，请重新登录');
+      showPasswordDialog.value = false;
+      
+      // 清空表单
+      passwordForm.oldPassword = '';
+      passwordForm.newPassword = '';
+      passwordForm.confirmPassword = '';
+      
+      // 延迟跳转到登录页
+      setTimeout(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        window.location.href = '/login';
+      }, 1500);
+    } else {
+      ElMessage.error(res.message || '密码修改失败');
+    }
+  } catch (error) {
+    console.error('修改密码失败:', error);
+    ElMessage.error('修改密码失败');
+  } finally {
+    passwordLoading.value = false;
+  }
+};
+
+// 取消修改密码
+const cancelPasswordChange = () => {
+  showPasswordDialog.value = false;
+  passwordForm.oldPassword = '';
+  passwordForm.newPassword = '';
+  passwordForm.confirmPassword = '';
+  passwordFormRef.value?.clearValidate();
+};
+
 onMounted(() => {
   loadUserInfo();
 });
@@ -409,6 +563,12 @@ onMounted(() => {
   color: #606266;
   margin: 0;
   line-height: 1.6;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .profile-details {
@@ -532,6 +692,10 @@ onMounted(() => {
   .profile-header {
     flex-direction: column;
     text-align: center;
+  }
+  
+  .action-buttons {
+    width: 100%;
   }
   
   .detail-grid {
