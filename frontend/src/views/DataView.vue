@@ -80,11 +80,22 @@
         <div class="section-header">
           <h3>操作记录</h3>
           <div class="header-actions">
+
+            <div class="page-size-selector">
+            <span style="margin-right: 8px; color: #606266;">每页显示：</span>
+            <el-select v-model="pageSize" @change="handlePageSizeChange" style="width: 100px">
+              <el-option :value="5" label="5 条" />
+              <el-option :value="10" label="10 条" />
+              <el-option :value="20" label="20 条" />
+              <el-option :value="50" label="50 条" />
+            </el-select>
+          </div>
             <el-button 
               @click="refreshRecords" 
               :icon="Refresh" 
               circle 
             />
+            
           </div>
         </div>
 
@@ -135,7 +146,7 @@
         </div>
         
         <el-table 
-          :data="records" 
+          :data="paginatedRecords"
           v-loading="recordsLoading"
           @selection-change="handleSelectionChange"
           style="width: 100%; margin-top: 16px;"
@@ -174,6 +185,18 @@
             </template>
           </el-table-column>
         </el-table>
+        <!-- 分页 -->
+        <div v-if="records.length > 0" class="pagination-container">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[5, 10, 20, 50]"
+            :total="records.length"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handlePageSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>        
       </div>
     </div>
   </div>
@@ -198,6 +221,8 @@ import { getCurrentUserId } from '@/utils/auth';
 import type { StatsData, OperationRecord, ApiResponse } from '@/types';
 import TheNavbar from '@/components/TheNavbar.vue';
 import dayjs from 'dayjs';
+import { computed} from 'vue';
+
 
 const router = useRouter();
 const userId = getCurrentUserId();
@@ -217,6 +242,9 @@ const recordsLoading = ref(false);
 const timeRange = ref('today');
 const customTimeRange = ref<[Date, Date] | null>(null);
 const selectedOperationType = ref('');
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 // 图表引用
 const pieChartRef = ref<HTMLElement>();
@@ -226,6 +254,13 @@ const lineChartRef = ref<HTMLElement>();
 let pieChart: echarts.ECharts | null = null;
 let barChart: echarts.ECharts | null = null;
 let lineChart: echarts.ECharts | null = null;
+
+// 分页数据
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return records.value.slice(start, end);
+});
 
 // 获取统计数据
 const loadStats = async () => {
@@ -324,13 +359,18 @@ const loadRecords = async () => {
   } finally {
     recordsLoading.value = false;
   }
+  currentPage.value = 1; // 重置到第一页
 };
+
+
 
 // 时间范围变化
 const handleTimeRangeChange = () => {
   if (timeRange.value !== 'custom') {
     customTimeRange.value = null;
   }
+
+currentPage.value = 1;
   loadRecords();
 };
 
@@ -612,6 +652,15 @@ const getOperationTypeTag = (type: string): string => {
   };
   return typeMap[type] || 'info';
 };
+// 分页处理
+const handlePageSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
+};
+
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
+};
 
 // 监听记录变化，更新图表
 watch(records, () => {
@@ -797,6 +846,13 @@ onUnmounted(() => {
   padding: 16px;
   background: #f5f7fa;
   border-radius: 8px;
+}
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
 }
 
 /* 响应式设计 */
