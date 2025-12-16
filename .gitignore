@@ -31,10 +31,6 @@ target/
 mvnw
 mvnw.cmd
 
-# IntelliJ IDEA
-*.iws
-*.iml
-*.ipr
 
 # Java specific
 *.class
@@ -47,13 +43,11 @@ mvnw.cmd
 *.tmp
 
 # Eclipse IDE
-.project
-.classpath
 .settings/
 
 # Other IDEs or text editors
 .vscode/
 new_backend/
 test_backend/
-user_management/
-ploads
+user-management/
+uploads/

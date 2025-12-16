@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Date;
 
 @RestController
 @RequestMapping("/api/task")
@@ -33,6 +34,9 @@ public class SysTaskController {
     @PostMapping("/add")
     public Result<Long> addTask(@RequestBody SysTask task) {
         try {
+            // 设置创建时间和更新时间
+            task.setCreateTime(new Date());
+            task.setUpdateTime(new Date());
             boolean success = taskService.save(task);
             if (success) {
                 // 记录操作
@@ -54,31 +58,96 @@ public class SysTaskController {
         }
     }
 
-    // 完成任务
-    @PutMapping("/complete/{taskId}")
-    public Result<Void> completeTask(@PathVariable Long taskId) {
-        try {
-            SysTask task = taskService.getById(taskId);
-            if (task == null) return Result.fail("任务不存在");
 
-            task.setCompletionStatus(1); // 1=已完成
+    // 修改任务
+    @PutMapping("/update")
+    public Result<Void> updateTask(@RequestBody SysTask task) {
+        try {
+            SysTask oldTask = taskService.getById(task.getTaskId());
+            if (oldTask == null) {
+                return Result.fail("任务不存在");
+            }
+
+            // 更新任务
+            task.setUpdateTime(new Date());
             boolean success = taskService.updateById(task);
 
             if (success) {
                 // 记录操作
+                StringBuilder detail = new StringBuilder("修改任务: ");
+                detail.append(task.getTaskContent());
+
+                if (!oldTask.getTaskContent().equals(task.getTaskContent())) {
+                    detail.append(" [内容已修改]");
+                }
+                if ((task.getStartTime() != null && !task.getStartTime().equals(oldTask.getStartTime()))
+                        || (oldTask.getStartTime() != null && !oldTask.getStartTime().equals(task.getStartTime()))) {
+                    detail.append(" [开始时间已修改]");
+                }
+                if ((task.getEndTime() != null && !task.getEndTime().equals(oldTask.getEndTime()))
+                        || (oldTask.getEndTime() != null && !oldTask.getEndTime().equals(task.getEndTime()))) {
+                    detail.append(" [结束时间已修改]");
+                }
+
+                operationRecordService.createRecord(
+                        task.getUserId(),
+                        task.getTaskId(),
+                        "修改任务",
+                        detail.toString()
+                );
+
+                return Result.success(null, "任务修改成功");
+            } else {
+                return Result.fail("修改失败");
+            }
+        } catch (Exception e) {
+            return Result.fail("修改任务失败: " + e.getMessage());
+        }
+    }
+
+    // 切换任务完成状态
+    @PutMapping("/toggle/{taskId}")
+    public Result<Void> toggleTaskStatus(@PathVariable Long taskId) {
+        try {
+            SysTask task = taskService.getById(taskId);
+            if (task == null) {
+                return Result.fail("任务不存在");
+            }
+
+            // 切换状态
+            int newStatus = task.getCompletionStatus() == 1 ? 0 : 1;
+            task.setCompletionStatus(newStatus);
+            task.setUpdateTime(new Date());
+
+            boolean success = taskService.updateById(task);
+
+            if (success) {
+                // 记录操作
+                String operationType = newStatus == 1 ? "完成任务" : "取消完成";
+                String detail = (newStatus == 1 ? "完成任务: " : "取消完成: ") + task.getTaskContent();
+
                 operationRecordService.createRecord(
                         task.getUserId(),
                         taskId,
-                        "完成任务",
-                        "完成任务: " + task.getTaskContent()
+                        operationType,
+                        detail
                 );
-                return Result.success(null, "任务已标记为完成");
+
+                return Result.success(null, newStatus == 1 ? "任务已标记为完成" : "任务已标记为未完成");
             } else {
                 return Result.fail("操作失败");
             }
         } catch (Exception e) {
-            return Result.fail("完成任务失败: " + e.getMessage());
+            return Result.fail("操作失败: " + e.getMessage());
         }
+    }
+
+
+    // 完成任务
+    // 完成任务（保留兼容性）
+    @PutMapping("/complete/{taskId}")
+    public Result<Void> completeTask(@PathVariable Long taskId) {
+        return toggleTaskStatus(taskId);
     }
 
     // 删除任务（级联删除子任务）

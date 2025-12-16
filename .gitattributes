@@ -1,0 +1,25 @@
+# 核心：所有文本文件统一 LF，自动区分文本/二进制
+* text=auto eol=lf
+
+# 明确标记二进制文件（Git 不处理换行符）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.dll binary
+*.zip binary
+*.tar.gz binary
+
+# 前后端文本文件（兜底，确保都用 LF）
+*.java text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+.gitignore text eol=lf

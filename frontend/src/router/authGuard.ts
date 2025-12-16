@@ -78,7 +78,7 @@ export const redirectIfLoggedIn = (
  */
 export const globalGuard = (
   to: RouteLocationNormalized,
-  from: RouteLocationNormalized,
+  _from: RouteLocationNormalized,
   next: NavigationGuardNext
 ): void => {
   try {

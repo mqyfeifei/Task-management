@@ -9,7 +9,7 @@
         <div class="header-actions">
           <el-button 
             type="primary" 
-            @click="showAddDialog = true"
+            @click="openAddDialog"
             :icon="Plus"
             size="large"
           >
@@ -33,7 +33,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-label">总任务数</div>
-            <div class="stat-value">{{ taskList.length }}</div>
+            <div class="stat-value">{{ flattenTasks.length }}</div>
           </div>
         </div>
         
@@ -65,14 +65,14 @@
             <el-icon><Folder /></el-icon>
             <h3>我的任务</h3>
             <el-tag v-if="taskList.length > 0" type="info" size="small">
-              {{ taskList.length }} 个任务
+              {{ taskList.length }} 个根任务
             </el-tag>
           </div>
         </div>
         
         <div v-if="taskList.length === 0" class="empty-state">
           <el-empty description="暂无任务，开始创建你的第一个任务吧！">
-            <el-button type="primary" @click="showAddDialog = true">
+            <el-button type="primary" @click="openAddDialog">
               创建任务
             </el-button>
           </el-empty>
@@ -86,7 +86,6 @@
           node-key="taskId"
           default-expand-all
           :expand-on-click-node="false"
-          @node-click="handleNodeClick"
           class="task-tree"
         >
           <template #default="{ node, data }">
@@ -119,13 +118,22 @@
               <div class="node-actions">
                 <el-button 
                   size="small" 
-                  @click.stop="handleComplete(data)"
-                  :disabled="data.completionStatus === 1"
+                  @click.stop="toggleComplete(data)"
                   :type="data.completionStatus === 1 ? 'success' : 'primary'"
                   plain
                 >
-                  <el-icon v-if="data.completionStatus === 1"><Check /></el-icon>
+                  <el-icon><Check v-if="data.completionStatus === 1" /><Clock v-else /></el-icon>
                   {{ data.completionStatus === 1 ? '已完成' : '完成' }}
+                </el-button>
+                
+                <el-button 
+                  size="small" 
+                  type="warning" 
+                  @click.stop="openEditDialog(data)"
+                  plain
+                >
+                  <el-icon><Edit /></el-icon>
+                  编辑
                 </el-button>
                 
                 <el-button 
@@ -143,32 +151,32 @@
         </el-tree>
       </div>
 
-      <!-- 新增任务对话框 -->
+      <!-- 新增/编辑任务对话框 -->
       <el-dialog 
-        v-model="showAddDialog" 
-        title="新增任务"
+        v-model="showTaskDialog" 
+        :title="isEdit ? '编辑任务' : '新增任务'"
         width="500px"
         :close-on-click-modal="false"
       >
-        <el-form :model="newTask" label-width="90px">
+        <el-form :model="taskForm" label-width="90px">
           <el-form-item label="任务内容" required>
             <el-input 
-              v-model="newTask.taskContent" 
+              v-model="taskForm.taskContent" 
               placeholder="请输入任务内容"
               maxlength="200"
               show-word-limit
             />
           </el-form-item>
           
-          <el-form-item label="父任务">
+          <el-form-item label="父任务" v-if="!isEdit">
             <el-select 
-              v-model="newTask.parentTaskId" 
+              v-model="taskForm.parentTaskId" 
               placeholder="选择父任务（可选）"
               clearable
               style="width: 100%"
             >
               <el-option
-                v-for="task in flattenTasks"
+                v-for="task in availableParentTasks"
                 :key="task.taskId"
                 :label="task.taskContent"
                 :value="task.taskId"
@@ -177,11 +185,20 @@
             </el-select>
           </el-form-item>
           
-          <el-form-item label="截止时间">
+          <el-form-item label="开始时间">
             <el-date-picker 
-              v-model="newTask.endTime" 
+              v-model="taskForm.startTime" 
               type="datetime" 
-              placeholder="选择截止时间（可选）"
+              placeholder="选择开始时间（可选）"
+              style="width: 100%"
+            />
+          </el-form-item>
+          
+          <el-form-item label="结束时间">
+            <el-date-picker 
+              v-model="taskForm.endTime" 
+              type="datetime" 
+              placeholder="选择结束时间（可选）"
               :disabled-date="disabledDate"
               style="width: 100%"
             />
@@ -189,11 +206,11 @@
         </el-form>
         
         <template #footer>
-          <el-button @click="showAddDialog = false">取消</el-button>
+          <el-button @click="closeTaskDialog">取消</el-button>
           <el-button 
             type="primary" 
-            @click="addTask" 
-            :loading="addLoading"
+            @click="submitTask" 
+            :loading="submitLoading"
           >
             确认
           </el-button>
@@ -216,7 +233,8 @@ import {
   Folder, 
   Calendar, 
   Delete, 
-  Check
+  Check,
+  Edit
 } from '@element-plus/icons-vue';
 import { taskAPI } from '@/api';
 import { getCurrentUserId, getToken } from '@/utils/auth';
@@ -229,8 +247,9 @@ const userId = getCurrentUserId();
 
 // 响应式数据
 const taskList = ref<Task[]>([]);
-const showAddDialog = ref(false);
-const addLoading = ref(false);
+const showTaskDialog = ref(false);
+const isEdit = ref(false);
+const submitLoading = ref(false);
 const loading = ref(false);
 
 const treeProps = {
@@ -238,10 +257,12 @@ const treeProps = {
   children: 'subTasks'
 };
 
-const newTask = ref({
+const taskForm = ref({
+  taskId: null as number | null,
   userId: userId || '',
   parentTaskId: null as number | null,
   taskContent: '',
+  startTime: null as string | null,
   endTime: null as string | null
 });
 
@@ -259,6 +280,19 @@ const flattenTasks = computed(() => {
   return flatten(taskList.value);
 });
 
+// 可选的父任务（编辑时排除自己和子任务）
+const availableParentTasks = computed(() => {
+  if (isEdit.value && taskForm.value.taskId) {
+    const currentTaskId = taskForm.value.taskId;
+    return flattenTasks.value.filter(task => 
+      task.taskId !== currentTaskId && 
+      task.completionStatus !== 1 &&
+      !isDescendant(task, currentTaskId)
+    );
+  }
+  return flattenTasks.value.filter(task => task.completionStatus !== 1);
+});
+
 const completedCount = computed(() => {
   return flattenTasks.value.filter(task => task.completionStatus === 1).length;
 });
@@ -266,6 +300,14 @@ const completedCount = computed(() => {
 const pendingCount = computed(() => {
   return flattenTasks.value.filter(task => task.completionStatus === 0).length;
 });
+
+// 检查是否为子孙任务
+const isDescendant = (task: Task, ancestorId: number): boolean => {
+  if (!task.subTasks || task.subTasks.length === 0) return false;
+  return task.subTasks.some(subTask => 
+    subTask.taskId === ancestorId || isDescendant(subTask, ancestorId)
+  );
+};
 
 // 检查是否为重要任务
 const isImportantTask = (task: Task): boolean => {
@@ -314,61 +356,88 @@ const loadTasks = async () => {
   }
 };
 
-// 新增任务
-const addTask = async () => {
-  if (!newTask.value.taskContent.trim()) {
+// 打开新增对话框
+const openAddDialog = () => {
+  isEdit.value = false;
+  taskForm.value = {
+    taskId: null,
+    userId: userId || '',
+    parentTaskId: null,
+    taskContent: '',
+    startTime: null,
+    endTime: null
+  };
+  showTaskDialog.value = true;
+};
+
+// 打开编辑对话框
+const openEditDialog = (task: Task) => {
+  isEdit.value = true;
+  taskForm.value = {
+    taskId: task.taskId,
+    userId: task.userId.toString(),
+    parentTaskId: task.parentTaskId || null,
+    taskContent: task.taskContent,
+    startTime: task.startTime || null,
+    endTime: task.endTime || null
+  };
+  showTaskDialog.value = true;
+};
+
+// 关闭对话框
+const closeTaskDialog = () => {
+  showTaskDialog.value = false;
+  taskForm.value = {
+    taskId: null,
+    userId: userId || '',
+    parentTaskId: null,
+    taskContent: '',
+    startTime: null,
+    endTime: null
+  };
+};
+
+// 提交任务
+const submitTask = async () => {
+  if (!taskForm.value.taskContent.trim()) {
     ElMessage.warning('请输入任务内容');
     return;
   }
   
-  addLoading.value = true;
+  submitLoading.value = true;
   
   try {
-    const res: ApiResponse<number> = await taskAPI.addTask({
-      userId: newTask.value.userId,
-      parentTaskId: newTask.value.parentTaskId,
-      taskContent: newTask.value.taskContent,
-      endTime: newTask.value.endTime
-    });
+    const res: ApiResponse = isEdit.value 
+      ? await taskAPI.updateTask(taskForm.value)
+      : await taskAPI.addTask(taskForm.value);
     
     if (res.success) {
-      ElMessage.success(res.message || '新增任务成功');
-      showAddDialog.value = false;
-      
-      // 重置表单
-      newTask.value.taskContent = '';
-      newTask.value.parentTaskId = null;
-      newTask.value.endTime = null;
-      
-      await loadTasks();
-    } else {
-      ElMessage.error(res.message || '新增任务失败');
-    }
-  } catch (error) {
-    console.error('新增任务失败:', error);
-    ElMessage.error('新增任务失败');
-  } finally {
-    addLoading.value = false;
-  }
-};
-
-// 完成任务
-const handleComplete = async (task: Task) => {
-  if (task.completionStatus === 1) {
-    ElMessage.info('该任务已完成');
-    return;
-  }
-
-  try {
-    const res: ApiResponse = await taskAPI.completeTask(task.taskId);
-    if (res.success) {
-      ElMessage.success('任务完成');
+      ElMessage.success(res.message || (isEdit.value ? '修改成功' : '新增成功'));
+      closeTaskDialog();
       await loadTasks();
     } else {
       ElMessage.error(res.message || '操作失败');
     }
   } catch (error) {
-    console.error('完成任务失败:', error);
+    console.error('提交失败:', error);
+    ElMessage.error('操作失败');
+  } finally {
+    submitLoading.value = false;
+  }
+};
+
+// 切换完成状态
+const toggleComplete = async (task: Task) => {
+  try {
+    const res: ApiResponse = await taskAPI.toggleTaskStatus(task.taskId);
+    if (res.success) {
+      ElMessage.success(res.message || '操作成功');
+      await loadTasks();
+    } else {
+      ElMessage.error(res.message || '操作失败');
+    }
+  } catch (error) {
+    console.error('操作失败:', error);
     ElMessage.error('操作失败');
   }
 };
@@ -401,11 +470,6 @@ const handleDelete = async (taskId: number) => {
   }
 };
 
-// 节点点击
-const handleNodeClick = (data: Task) => {
-  console.log('选中任务:', data);
-};
-
 // 禁用过去的日期
 const disabledDate = (time: Date): boolean => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000;
@@ -428,7 +492,6 @@ onMounted(() => {
   padding: 80px 20px 40px;
 }
 
-/* 页面标题 */
 .header {
   display: flex;
   justify-content: space-between;
@@ -448,7 +511,6 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* 统计卡片 */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -507,7 +569,6 @@ onMounted(() => {
   color: #303133;
 }
 
-/* 任务区域 */
 .task-section {
   background: white;
   border-radius: 12px;
@@ -536,7 +597,6 @@ onMounted(() => {
   text-align: center;
 }
 
-/* 树形结构 */
 .task-tree {
   margin-top: 16px;
 }
@@ -615,13 +675,12 @@ onMounted(() => {
   opacity: 1;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .container {
     padding: 70px 15px 30px;
   }
   
-  .header {
+.header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;

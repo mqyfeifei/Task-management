@@ -35,11 +35,11 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
-# 文件存储路径配置
+
 file:
   upload:
-#    path: /uploads/avatars/  # Linux/Mac
-     path: D:\mqy\java\task-management\ploads\avatars\  # Windows
+    path: D:/mqy/java/task-management/uploads/files/
+
 
 # MyBatis-Plus 配置
 mybatis-plus:

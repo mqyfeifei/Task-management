@@ -184,7 +184,7 @@ const avatarUrl = computed(() => {
     return avatarPreview.value;
   }
   if (userInfo.value.avatarUrl) {
-    return `http://localhost:8080${userInfo.value.avatarUrl}`;
+    return `http://localhost:8080${userInfo.value.avatarUrl}`; 
   }
   return '';
 });

@@ -10,6 +10,7 @@ export interface Task {
   taskId: number;
   taskContent: string;
   completionStatus: number;  // 0-未完成, 1-已完成
+  startTime?: string;        // 新增开始时间
   endTime?: string;
   subTasks?: Task[];        // 子任务列表
   userId: number;

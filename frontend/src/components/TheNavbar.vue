@@ -66,21 +66,43 @@ import {
   SwitchButton,
   ArrowDown
 } from '@element-plus/icons-vue';
-import { clearUserInfo, getCurrentUser } from '@/utils/auth';
+import { clearUserInfo, getCurrentUser,getCurrentUserId  } from '@/utils/auth';
+import { userAPI } from '@/api';
 
 const router = useRouter();
 const route = useRoute();
 
+
 const username = ref('用户');
 const activeMenu = ref('/tasks');
 
-// 初始化用户信息
-const initUserInfo = () => {
+const initUserInfo = async () => {
   const user = getCurrentUser();
   if (user?.username) {
     username.value = user.username;
   }
+  
+  // 获取用户ID
+  const userId = getCurrentUserId();
+
+  if (!userId) {
+    ElMessage.warning('用户ID不存在');
+    return;
+  }
+
+  try {
+    const res = await userAPI.getUserInfo(userId);
+    if (res.success && res.data) {
+      username.value = res.data.username || '用户';
+    } else {
+      ElMessage.warning(res.message || '获取用户信息失败');
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+    ElMessage.error('加载用户信息失败');
+  }
 };
+
 
 // 更新激活菜单
 const updateActiveMenu = () => {

@@ -42,16 +42,17 @@ const router = createRouter({
       component: () => import('@/views/SettingsView.vue'),
       meta: { requiresAuth: true }
     },
-    {
-      path: '/OperationRecord',
-      name: 'OperationRecord',
-      component: () => import('@/views/OperationRecord.vue'),
-      meta: { 
-        requiresAuth: true,
-        title: '数据管理',
-        icon: 'data-line'  // 根据你的图标库调整
-      }
-}
+//     },
+//     {
+//       path: '/OperationRecord',
+//       name: 'OperationRecord',
+//       component: () => import('@/views/OperationRecord.vue'),
+//       meta: { 
+//         requiresAuth: true,
+//         title: '数据管理',
+//         icon: 'data-line'  // 根据你的图标库调整
+//       }
+// }
   ]
 });
 
