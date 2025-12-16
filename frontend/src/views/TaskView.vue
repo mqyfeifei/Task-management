@@ -152,6 +152,17 @@
                       {{ formatDateTime(row.endTime) }}
                     </template>
                   </el-table-column>
+                  <!-- 新增：任务剩余时间列 -->
+                  <el-table-column label="剩余时间" width="160" align="center">
+                    <template #default="{ row }">
+                      <div class="remaining-time-cell" :class="{ 'overdue': isOverdue(row) }">
+                        <el-icon v-if="isOverdue(row)" color="#f56c6c"><Warning /></el-icon>
+                        <el-icon v-else color="#67c23a"><Timer /></el-icon>
+                        <span>{{ calculateRemainingTime(row) }}</span>
+                      </div>
+                    </template>
+                  </el-table-column>
+
                   <el-table-column label="完成状态" width="100" align="center">
                     <template #default="{ row }">
                       <el-tag :type="row.completionStatus === 1 ? 'success' : 'warning'" size="small">
@@ -237,7 +248,16 @@
               </div>
             </template>
           </el-table-column>
-
+          <!-- 新增：任务剩余时间列 -->
+          <el-table-column label="剩余时间" width="160" align="center">
+            <template #default="{ row }">
+              <div class="remaining-time-cell" :class="{ 'overdue': isOverdue(row) }">
+                <el-icon v-if="isOverdue(row)" color="#f56c6c"><Warning /></el-icon>
+                <el-icon v-else color="#67c23a"><Timer /></el-icon>
+                <span>{{ calculateRemainingTime(row) }}</span>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="完成状态" width="120" align="center">
             <template #default="{ row }">
               <el-tag :type="row.completionStatus === 1 ? 'success' : 'warning'" size="small">
@@ -384,7 +404,9 @@ import {
   Delete, 
   Check,
   Edit,
-  Search
+  Search,
+  Timer, 
+  Warning 
 } from '@element-plus/icons-vue';
 import { taskAPI } from '@/api';
 import { getCurrentUserId, getToken } from '@/utils/auth';
@@ -557,6 +579,34 @@ const isDescendant = (task: Task, ancestorId: number): boolean => {
 const isOverdue = (task: Task): boolean => {
   if (!task.endTime || task.completionStatus === 1) return false;
   return dayjs(task.endTime).isBefore(dayjs());
+};
+
+
+// 新增：计算任务剩余时间（天/时/分）
+const calculateRemainingTime = (task: Task): string => {
+  // 已完成/无结束时间 → 显示空
+  if (task.completionStatus === 1 || !task.endTime) return '--';
+  
+  const endTime = dayjs(task.endTime);
+  const now = dayjs();
+  
+  // 已截止
+  if (endTime.isBefore(now)) return '已截止';
+  
+  // 计算时间差（毫秒）
+  const diffMs = endTime.diff(now);
+  // 转换为天/时/分
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+  // 拼接结果（只显示非零部分）
+  const parts = [];
+  if (days > 0) parts.push(`${days}天`);
+  if (hours > 0 || (days > 0 && minutes > 0)) parts.push(`${hours}小时`);
+  parts.push(`${minutes}分钟`);
+  
+  return parts.join('');
 };
 
 // 格式化日期时间
@@ -896,6 +946,19 @@ font-size: 28px;
 font-weight: bold;
 color: #303133;
 }
+
+/* 剩余时间单元格样式 */
+.remaining-time-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.remaining-time-cell.overdue {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
 .search-section {
 margin-bottom: 24px;
 }
